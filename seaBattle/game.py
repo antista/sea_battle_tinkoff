@@ -2,7 +2,7 @@ import string
 import random
 
 from . import strings
-from seaBattle.config import get_ships_count, CELL_NEIGHBOURS
+from seaBattle.config import SHIPS_COUNT, CELL_NEIGHBOURS
 
 
 class SeaBattle:
@@ -10,7 +10,7 @@ class SeaBattle:
         self.size = size
         self.map = {x: [' ' for _ in range(self.size)] for x in string.ascii_uppercase[:self.size]}
         self.enemy_map = {x: [' ' for _ in range(self.size)] for x in string.ascii_uppercase[:self.size]}
-        self.ships_count = get_ships_count(self.size)
+        self.ships_count = SHIPS_COUNT[self.size]
         self.ships_cells = dict()
         self.ships = []
         self.generate_map()
@@ -23,23 +23,25 @@ class SeaBattle:
         self.ships_count = self.ships_count[0]
 
     def delete_marks(self):
-        for key in self.map.keys():
-            for i in range(len(self.map[key])):
-                if self.map[key][i] == '*':
-                    self.map[key][i] = ' '
+        for line in self.map.values():
+            for i, mark in enumerate(line):
+                if mark == '*':
+                    line[i] = ' '
 
     def mark_neighbour_cells(self, ship):
         for cell in self.ships[ship]:
             for n in CELL_NEIGHBOURS:
-                if chr(ord(cell[0]) + n[0]) in self.map.keys() and \
-                        len(self.map[chr(ord(cell[0]) + n[0])]) > cell[1] + n[1] >= 0 and \
-                        self.map[chr(ord(cell[0]) + n[0])][cell[1] + n[1]] == ' ':
-                    self.map[chr(ord(cell[0]) + n[0])][cell[1] + n[1]] = '*'
+                curr_cell_letter = self.find_another_letter(cell[0], n[0])
+                curr_cell_number = cell[1] + n[1]
+                if curr_cell_letter in self.map:
+                    if len(self.map[curr_cell_letter]) > curr_cell_number >= 0:
+                        if self.map[curr_cell_letter][curr_cell_number] == ' ':
+                            self.map[curr_cell_letter][curr_cell_number] = '*'
 
     def put_cell(self, cell, ship):
         self.map[cell[0]][cell[1]] = 'S'
-        self.ships_cells[(cell[0], cell[1])] = ship
-        self.ships[ship].append((cell[0], cell[1]))
+        self.ships_cells[cell] = ship
+        self.ships[ship].append(cell)
 
     def check_horizontal_ship(self, ship_size, cell):
         for i in range(ship_size):
@@ -49,8 +51,8 @@ class SeaBattle:
 
     def check_vertical_ship(self, ship_size, cell):
         for i in range(ship_size):
-            if chr(ord(cell[0]) + i) not in self.map.keys() \
-                    or self.map[chr(ord(cell[0]) + i)][cell[1]] != ' ':
+            if self.find_another_letter(cell[0], i) not in self.map.keys() \
+                    or self.map[self.find_another_letter(cell[0], i)][cell[1]] != ' ':
                 return False
         return True
 
@@ -59,15 +61,16 @@ class SeaBattle:
             self.ships.append([])
             curr_ship = len(self.ships) - 1
             while True:
-                cell = (random.choice(list(self.map.keys())), random.randint(0, self.size - 1))
-                if self.map[cell[0]][cell[1]] != ' ':
+                cell_letter = random.choice(list(self.map.keys()))
+                cell_number = random.randint(0, self.size - 1)
+                if self.map[cell_letter][cell_number] != ' ':
                     continue
-                if self.check_horizontal_ship(ship_size, cell):
+                if self.check_horizontal_ship(ship_size, (cell_letter, cell_number)):
                     for i in range(ship_size):
-                        self.put_cell((cell[0], cell[1] + i), curr_ship)
-                elif self.check_vertical_ship(ship_size, cell):
+                        self.put_cell((cell_letter, cell_number + i), curr_ship)
+                elif self.check_vertical_ship(ship_size, (cell_letter, cell_number)):
                     for i in range(ship_size):
-                        self.put_cell((chr(ord(cell[0]) + i), cell[1]), curr_ship)
+                        self.put_cell((self.find_another_letter(cell_letter, i), cell_number), curr_ship)
                 else:
                     continue  # pragma: no cover
                 break
@@ -81,43 +84,54 @@ class SeaBattle:
             print('--' * int(len(map) * 2.5))
             print(key, ' |', ' | '.join(map[key]), ' |')
 
-    def make_enemy_move(self, move):
-        def check_hit():
-            for ship in self.ships[self.ships_cells[move]]:
-                if self.map[ship[0]][ship[1]] != '+':
-                    return strings.HIT
-            self.ships_count -= 1
-            if not self.ships_count:
-                return strings.ENEMY_WON
-            return strings.KILL
+    @staticmethod
+    def find_another_letter(curr: str, diff: int):
+        return chr(ord(curr) + diff)
 
+    def check_hit(self, move):
+        for ship in self.ships[self.ships_cells[move]]:
+            if self.map[ship[0]][ship[1]] != '+':
+                return strings.HIT
+        self.ships_count -= 1
+        if not self.ships_count:
+            return strings.ENEMY_WON
+        return strings.KILL
+
+    def make_enemy_move(self, move):
         try:
-            move = (move[0].upper(), int(move[1:]) - 1)
-            if move[0] not in self.map.keys() or \
-                    move[1] > len(self.map[move[0]]):
-                raise Exception
+            cell_letter, cell_number = self.normalize_cell_definition(move)
         except:
             return strings.WRONG_MOVE
-        if self.map[move[0]][move[1]] in '+.':
+        if cell_letter not in self.map.keys() or \
+                cell_number > len(self.map[cell_letter]):
+            return strings.WRONG_MOVE
+
+        if self.map[cell_letter][cell_number] in '+.':
             return strings.ALREADY_BEEN_HERE
-        if self.map[move[0]][move[1]] == ' ':
-            self.map[move[0]][move[1]] = '.'
+        if self.map[cell_letter][cell_number] == ' ':
+            self.map[cell_letter][cell_number] = '.'
             self.my_turn = True
             return strings.MISSED
-        if self.map[move[0]][move[1]] == 'S':
-            self.map[move[0]][move[1]] = '+'
-            return check_hit()
+        if self.map[cell_letter][cell_number] == 'S':
+            self.map[cell_letter][cell_number] = '+'
+            return self.check_hit((cell_letter, cell_number))
+        raise RuntimeError('Undefined cell value')
 
     def make_move(self, move, move_result):
+        cell_letter, cell_number = self.normalize_cell_definition(move)
         if move_result == strings.MISSED:
-            self.enemy_map[move[0].upper()][int(move[1:]) - 1] = '.'
+            self.enemy_map[cell_letter][cell_number] = '.'
             self.my_turn = False
-        elif move_result == strings.ALREADY_BEEN_HERE or \
-                move_result == strings.WRONG_MOVE:
+        elif move_result in {strings.ALREADY_BEEN_HERE, strings.WRONG_MOVE}:
             pass
-        else:
-            self.enemy_map[move[0].upper()][int(move[1:]) - 1] = '+'
+        elif move_result in {strings.HIT, strings.KILL}:
+            self.enemy_map[cell_letter][cell_number] = '+'
             self.my_turn = True
+        else:
+            pass
+
+    def normalize_cell_definition(self, cell):
+        return cell[0].upper(), int(cell[1:]) - 1
 
     def process_my_move(self, conn):
         move = input('Ваш ход: ')
@@ -144,8 +158,12 @@ class SeaBattle:
             return True
 
         print(f'Игрок {enemy_number} сходил на {enemy_move}')
-
-        move_result = self.make_enemy_move(enemy_move)
+        try:
+            move_result = self.make_enemy_move(enemy_move)
+        except RuntimeError('Undefined cell value'):  # pragma: no cover
+            conn.send('Возникли неполадки')
+            print('У игрока неполадки')
+            return True
         self.print_map(self.map)
 
         conn.send(move_result.encode())

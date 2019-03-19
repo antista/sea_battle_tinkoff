@@ -1,18 +1,19 @@
-def get_ships_count(size):
-    return {2 <= size <= 3: (1, 1, 0, 0, 0),
-            size == 4: (2, 1, 1, 0, 0),
-            size == 5: (3, 2, 1, 0, 0),
-            size == 6: (5, 3, 2, 0, 0),
-            size == 7: (6, 3, 2, 1, 0),
-            size == 8: (8, 4, 3, 1, 0),
-            size == 9: (9, 4, 3, 2, 0),
-            size == 10: (10, 4, 3, 2, 1),
-            size == 11: (12, 5, 4, 2, 1),
-            size == 12: (13, 5, 4, 3, 1),
-            size == 13: (14, 5, 4, 3, 2),
-            size == 14: (16, 6, 5, 3, 2),
-            size >= 15: (18, 6, 5, 4, 3)}[True]
+from collections import defaultdict
 
+SHIPS_COUNT = defaultdict(lambda: (18, 6, 5, 4, 3))
+SHIPS_COUNT[2] = (1, 1, 0, 0, 0)
+SHIPS_COUNT[3] = (1, 1, 0, 0, 0)
+SHIPS_COUNT[4] = (2, 1, 1, 0, 0)
+SHIPS_COUNT[5] = (3, 2, 1, 0, 0)
+SHIPS_COUNT[6] = (5, 3, 2, 0, 0)
+SHIPS_COUNT[7] = (6, 3, 2, 1, 0)
+SHIPS_COUNT[8] = (8, 4, 3, 1, 0)
+SHIPS_COUNT[9] = (9, 4, 3, 2, 0)
+SHIPS_COUNT[10] = (10, 4, 3, 2, 1)
+SHIPS_COUNT[11] = (12, 5, 4, 2, 1)
+SHIPS_COUNT[12] = (13, 5, 4, 3, 1)
+SHIPS_COUNT[13] = (14, 5, 4, 3, 2)
+SHIPS_COUNT[14] = (16, 6, 5, 3, 2)
 
 CELL_NEIGHBOURS = ((-1, -1), (0, -1), (1, -1),
                    (-1, 0), (1, 0),

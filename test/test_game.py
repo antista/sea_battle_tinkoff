@@ -1,3 +1,5 @@
+import pytest
+
 from seaBattle import config, strings
 from seaBattle.game import SeaBattle
 
@@ -15,7 +17,7 @@ def test_init(mocker, small_game, standart_game, big_game):
 def test_generate_map(mocker, standart_game):
     mocker.patch('seaBattle.game.SeaBattle.generate_ships')
     mocker.patch('seaBattle.game.SeaBattle.delete_marks')
-    standart_game.ships_count = config.get_ships_count(10)
+    standart_game.ships_count = config.SHIPS_COUNT[10]
     standart_game.generate_map()
     SeaBattle.generate_ships.assert_called_with(4)
     SeaBattle.delete_marks.assert_called_once()
@@ -26,7 +28,7 @@ def test_generate_ships_standart(mocker, standart_game):
     mocker.patch('seaBattle.game.SeaBattle.check_vertical_ship', return_value=True)
     mocker.patch('seaBattle.game.SeaBattle.put_cell')
     mocker.patch('seaBattle.game.SeaBattle.mark_neighbour_cells')
-    standart_game.ships_count = config.get_ships_count(10)
+    standart_game.ships_count = config.SHIPS_COUNT[10]
     standart_game.generate_ships(4)
     SeaBattle.check_horizontal_ship.assert_called_once()
     SeaBattle.check_vertical_ship.assert_not_called()
@@ -38,7 +40,7 @@ def test_generate_ships_small(mocker, small_game):
     mocker.patch('seaBattle.game.SeaBattle.check_horizontal_ship')
     mocker.patch('seaBattle.game.SeaBattle.check_vertical_ship')
     mocker.patch('seaBattle.game.SeaBattle.put_cell')
-    small_game.ships_count = config.get_ships_count(3)
+    small_game.ships_count = config.SHIPS_COUNT[3]
     small_game.generate_ships(4)
     SeaBattle.check_horizontal_ship.assert_not_called()
     SeaBattle.check_vertical_ship.assert_not_called()
@@ -48,7 +50,7 @@ def test_generate_ships_small(mocker, small_game):
 def test_put_cell(mocker, small_game):
     mocker.patch('random.choice', return_value='A')
     mocker.patch('random.randint', return_value=2)
-    small_game.ships_count = config.get_ships_count(3)
+    small_game.ships_count = config.SHIPS_COUNT[3]
     small_game.generate_ships(1)
     assert small_game.map['A'][2] == 'S'
     assert small_game.ships_cells[('A', 2)] == 1
@@ -114,6 +116,10 @@ def test_make_enemy_move(mocker):
     assert game.make_enemy_move('A2') == strings.KILL
     assert game.make_enemy_move('C2') == strings.HIT
     assert game.make_enemy_move('C1') == strings.ENEMY_WON
+    assert game.make_enemy_move('po1') == strings.WRONG_MOVE
+    game.map['B'][0] = 'smth'
+    with pytest.raises(RuntimeError) as e_info:
+        assert game.make_enemy_move('B1') == Exception
 
 
 def test_make_move():
@@ -130,9 +136,6 @@ def test_make_move():
     assert game.my_turn
     game.make_move('a6', strings.KILL)
     assert game.enemy_map['A'][5] == '+'
-    assert game.my_turn
-    game.make_move('a7', strings.ENEMY_WON)
-    assert game.enemy_map['A'][6] == '+'
     assert game.my_turn
 
 
